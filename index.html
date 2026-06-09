@@ -202,6 +202,34 @@ canvas { display: block; width: 100%; }
 }
 
 .phys-note strong { color: var(--orange); }
+
+/* ── Toggle switch ── */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider-knob {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: var(--dim);
+  border-radius: 24px;
+  transition: 0.2s;
+}
+.slider-knob:before {
+  content: '';
+  position: absolute;
+  width: 18px; height: 18px;
+  left: 3px; top: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: 0.2s;
+}
+.switch input:checked + .slider-knob { background: var(--accent); }
+.switch input:checked + .slider-knob:before { transform: translateX(20px); }
 </style>
 </head>
 <body>
@@ -217,7 +245,7 @@ canvas { display: block; width: 100%; }
   <div class="ctrl-bar">
     <div class="ctrl-group">
       <label>반경방향 발사속도 vr &nbsp;<span id="vr_lbl">0.318</span> cm/s</label>
-      <input type="range" id="vr" min="0.05" max="0.8" step="0.001" value="0.318">
+      <input type="range" id="vr" min="0.01" max="0.8" step="0.001" value="0.318">
     </div>
     <div class="ctrl-group">
       <label>접선방향 보정 vt &nbsp;<span id="vt_lbl">0.000</span> cm/s</label>
@@ -225,11 +253,18 @@ canvas { display: block; width: 100%; }
     </div>
     <div class="ctrl-group">
       <label>시뮬레이션 시간 &nbsp;<span id="tmax_lbl">20</span> s</label>
-      <input type="range" id="tmax" min="1" max="40" step="1" value="20">
+      <input type="range" id="tmax" min="1" max="50" step="1" value="20">
     </div>
     <div class="btn-group">
       <button onclick="autoFind()" id="autoBtn">⟳ 자동탐색</button>
       <button onclick="presetOptimal()" class="active">★ 최적값</button>
+    </div>
+    <div class="ctrl-group" style="justify-content:flex-end;min-width:120px">
+      <label style="margin-bottom:6px">반경선 표시</label>
+      <label class="switch">
+        <input type="checkbox" id="lineToggle" onchange="draw()">
+        <span class="slider-knob"></span>
+      </label>
     </div>
   </div>
 
@@ -525,10 +560,36 @@ function draw() {
     }
   }
 
-  drawScaleBar(ci);
+  // ── 반경선 (스위치 ON일 때): 중심 → 마지막 공점, 중심 → 마지막 사람점
+  if (document.getElementById('lineToggle').checked) {
+    // 마지막으로 찍힌 점 = tmax 기준 가장 최근 DOT 간격 점
+    const lastDotT = Math.floor(tmax / DOT_STEP) * DOT_STEP;
+    const ballPt   = traj_in.slice().reverse().find(pt => Math.abs(pt.t % DOT_STEP) < 0.021);
+    const personPt = traj_in.slice().reverse().find(pt => pt.t > 0.01 && Math.abs(pt.t % DOT_STEP) < 0.021);
 
-  // ════════════════════════════════
-  //  RIGHT: ROTATING FRAME
+    ci.lineWidth = 1.2;
+    ci.setLineDash([4, 4]);
+
+    if (ballPt) {
+      const [bx2, by2] = cm2px(ballPt.bx, ballPt.by);
+      ci.beginPath();
+      ci.moveTo(CX, CY);
+      ci.lineTo(bx2, by2);
+      ci.strokeStyle = 'rgba(255,100,100,0.45)';
+      ci.stroke();
+    }
+    if (personPt) {
+      const [ppx2, ppy2] = cm2px(personPt.ppx, personPt.ppy);
+      ci.beginPath();
+      ci.moveTo(CX, CY);
+      ci.lineTo(ppx2, ppy2);
+      ci.strokeStyle = 'rgba(255,100,100,0.45)';
+      ci.stroke();
+    }
+    ci.setLineDash([]);
+  }
+
+  drawScaleBar(ci);
   // ════════════════════════════════
   const cr = CV.rot.ctx;
   cr.clearRect(0,0,W,H);
