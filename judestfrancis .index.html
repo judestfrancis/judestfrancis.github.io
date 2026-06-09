@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>인공중력 · 두 시점 비교 v2</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+KR:wght@300;400;700&display=swap');
+
+:root {
+  --bg:      #080b10;
+  --panel:   #0d1117;
+  --border:  #1c2333;
+  --accent:  #58a6ff;
+  --orange:  #ffa657;
+  --green:   #3fb950;
+  --red:     #ff7b72;
+  --yellow:  #e3b341;
+  --gray:    #6e7681;
+  --text:    #c9d1d9;
+  --dim:     #30363d;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans KR', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 12px 40px;
+}
+
+header { text-align: center; margin-bottom: 20px; }
+header h1 {
+  font-family: 'Space Mono', monospace;
+  font-size: 1rem;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+header p {
+  font-size: 0.72rem;
+  color: var(--gray);
+  margin-top: 5px;
+  font-family: 'Space Mono', monospace;
+  letter-spacing: 0.08em;
+}
+
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: 1000px;
+}
+
+.ctrl-bar {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: flex-end;
+}
+
+.ctrl-group { display: flex; flex-direction: column; gap: 6px; min-width: 160px; }
+.ctrl-group label {
+  font-size: 0.68rem;
+  color: var(--gray);
+  font-family: 'Space Mono', monospace;
+  letter-spacing: 0.08em;
+}
+.ctrl-group label span { color: var(--orange); }
+
+input[type=range] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+
+.btn-group { display: flex; gap: 8px; align-items: flex-end; }
+button {
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+button:hover { border-color: var(--accent); color: var(--accent); }
+button.active { border-color: var(--green); color: var(--green); background: rgba(63,185,80,.08); }
+
+.views {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 660px) { .views { grid-template-columns: 1fr; } }
+
+.view-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.view-header {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.view-header h2 {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.badge {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.6rem;
+  padding: 2px 7px;
+  border-radius: 20px;
+  letter-spacing: 0.08em;
+}
+.badge-inertial { background: rgba(88,166,255,.15); color: var(--accent); border: 1px solid rgba(88,166,255,.3); }
+.badge-rotating { background: rgba(255,166,87,.15); color: var(--orange); border: 1px solid rgba(255,166,87,.3); }
+
+canvas { display: block; width: 100%; }
+
+.info-bar {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 18px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+.info-cell { display: flex; flex-direction: column; gap: 3px; }
+.info-cell .lbl { font-size: 0.65rem; color: var(--gray); font-family: 'Space Mono', monospace; }
+.info-cell .val { font-size: 0.82rem; font-family: 'Space Mono', monospace; color: var(--text); }
+.val.ok   { color: var(--green); }
+.val.warn { color: var(--red); }
+.val.hi   { color: var(--orange); }
+
+.legend-bar {
+  display: flex; flex-wrap: wrap; gap: 16px;
+  padding: 10px 18px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.68rem;
+  font-family: 'Space Mono', monospace;
+  color: var(--gray);
+}
+.li { display: flex; align-items: center; gap: 6px; }
+.swatch { width: 10px; height: 10px; border-radius: 50%; }
+
+.phys-note {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--orange);
+  border-radius: 0 6px 6px 0;
+  padding: 12px 16px;
+  font-size: 0.72rem;
+  line-height: 1.8;
+  color: var(--gray);
+  font-family: 'Space Mono', monospace;
+}
+.phys-note strong { color: var(--orange); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Artificial Gravity · Dual Frame v2</h1>
+  <p>손 높이 = 회색 원(R=3cm) · 공이 회색 원 위에서 출발 · 점 간격 = 0.5 s</p>
+</header>
+
+<div class="layout">
+
+  <div class="ctrl-bar">
+    <div class="ctrl-group">
+      <label>반경방향 발사속도 vr &nbsp;<span id="vr_lbl">0.480</span> cm/s</label>
+      <input type="range" id="vr" min="0.01" max="1.0" step="0.001" value="0.480">
+    </div>
+    <div class="ctrl-group">
+      <label>접선방향 보정 vt &nbsp;<span id="vt_lbl">0.000</span> cm/s</label>
+      <input type="range" id="vt" min="-0.3" max="0.3" step="0.001" value="0.000">
+    </div>
+    <div class="ctrl-group">
+      <label>시뮬레이션 시간 &nbsp;<span id="tmax_lbl">14</span> s</label>
+      <input type="range" id="tmax" min="4" max="30" step="1" value="14">
+    </div>
+    <div class="btn-group">
+      <button onclick="autoFind()" >⟳ 자동탐색</button>
+      <button onclick="presetOptimal()" class="active">★ 최적값</button>
+    </div>
+  </div>
+
+  <div class="views">
+    <div class="view-card">
+      <div class="view-header">
+        <h2>관성계</h2>
+        <span class="badge badge-inertial">INERTIAL FRAME</span>
+      </div>
+      <canvas id="cvs_in" width="440" height="440"></canvas>
+    </div>
+    <div class="view-card">
+      <div class="view-header">
+        <h2>회전계 (우주인 시점)</h2>
+        <span class="badge badge-rotating">ROTATING FRAME</span>
+      </div>
+      <canvas id="cvs_rot" width="440" height="440"></canvas>
+    </div>
+  </div>
+
+  <div class="info-bar">
+    <div class="info-cell"><span class="lbl">교차 시간</span><span class="val" id="i_ct">—</span></div>
+    <div class="info-cell"><span class="lbl">사람 회전각</span><span class="val" id="i_ang">—</span></div>
+    <div class="info-cell"><span class="lbl">최대 도달 반경</span><span class="val hi" id="i_maxr">—</span></div>
+    <div class="info-cell"><span class="lbl">최소 반경 (최고점)</span><span class="val hi" id="i_minr">—</span></div>
+    <div class="info-cell"><span class="lbl">ω (각속도)</span><span class="val">0.125 rad/s</span></div>
+    <div class="info-cell"><span class="lbl">공 출발 반경</span><span class="val ok">3 cm (회색 원)</span></div>
+  </div>
+
+  <div class="legend-bar">
+    <div class="li"><span class="swatch" style="background:#3d7bc8"></span>우주선 벽 R=4cm</div>
+    <div class="li"><span class="swatch" style="background:#555;border:2px dashed #888"></span>기준원(손높이) R=3cm</div>
+    <div class="li"><span class="swatch" style="background:#3fb950"></span>공 궤적 (0.5s 점)</div>
+    <div class="li"><span class="swatch" style="background:#e3b341"></span>사람 위치 (0.5s 점)</div>
+    <div class="li"><span class="swatch" style="background:#ff7b72"></span>R=3 교차점(착지)</div>
+  </div>
+
+  <div class="phys-note">
+    <strong>변경사항:</strong> 공이 R=3cm 회색 원 위에서 출발 (손 높이 = 회색 원 높이).<br>
+    공은 반경방향으로 안쪽(중심 방향)으로 던져지고, 다시 R=3 원을 통과할 때 착지로 판정.<br>
+    <strong>최적값(★):</strong> vr≈0.48 cm/s → 체공 시간 ≈6.0s, 사람 회전 ≈43°.
+  </div>
+
+</div>
+
+<script>
+// ── Constants ──
+const R_OUT  = 4;
+const R_REF  = 3;      // gray circle = hand height = launch radius
+const OMEGA  = 0.125;
+const V_TAN  = 0.5;
+const W = 440, H = 440, CX = W/2, CY = H/2;
+const SCALE  = 50;     // px/cm
+
+const CV = {
+  in:  { el: document.getElementById('cvs_in'),  ctx: null },
+  rot: { el: document.getElementById('cvs_rot'), ctx: null }
+};
+CV.in.ctx  = CV.in.el.getContext('2d');
+CV.rot.ctx = CV.rot.el.getContext('2d');
+
+function cm2px(x, y) { return [CX + x*SCALE, CY - y*SCALE]; }
+
+// ── Simulation ──
+function simulate(vr, vt_extra, tmax, dt=0.02) {
+  const theta0 = -Math.PI/2;
+
+  // Tangential and radial unit vectors at 6 o'clock
+  const tx = 1, ty = 0;      // CCW tangential
+  const rx_hat = 0, ry_hat = 1; // radially inward
+
+  // Ball launches FROM the gray circle (r = R_REF)
+  const bx0 = 0;
+  const by0 = -R_REF;  // exactly on gray circle at bottom
+
+  // Ball initial velocity in inertial frame
+  const bvx0 = V_TAN * tx + vr * rx_hat + vt_extra * tx;
+  const bvy0 = V_TAN * ty + vr * ry_hat + vt_extra * ty;
+
+  const traj_in  = [];
+  const traj_rot = [];
+  let cross_t = null, cross_pt_in = null, cross_pt_rot = null;
+  let max_r = 0, min_r = R_REF;
+  let phase = 'start'; // start → going_in → inside → (cross detected)
+
+  const steps = Math.ceil(tmax / dt);
+
+  for (let i = 0; i <= steps; i++) {
+    const t = i * dt;
+
+    const bx = bx0 + bvx0 * t;
+    const by = by0 + bvy0 * t;
+    const br = Math.sqrt(bx*bx + by*by);
+
+    if (br > max_r) max_r = br;
+    if (br < min_r) min_r = br;
+
+    const theta_p = theta0 + OMEGA * t;
+    const ppx = R_OUT * Math.cos(theta_p);
+    const ppy = R_OUT * Math.sin(theta_p);
+
+    traj_in.push({ t, bx, by, br, ppx, ppy });
+
+    const phi = theta_p;
+    const rx2 =  bx * Math.cos(phi) + by * Math.sin(phi);
+    const ry2 = -bx * Math.sin(phi) + by * Math.cos(phi);
+    traj_rot.push({ t, bx: rx2, by: ry2 });
+
+    // Phase tracking for crossing detection
+    if (phase === 'start' && br < R_REF - 0.05) phase = 'inside';
+    if (phase === 'inside' && br >= R_REF && cross_t === null) {
+      cross_t = t;
+      cross_pt_in  = { x: bx, y: by };
+      cross_pt_rot = { x: rx2, y: ry2 };
+    }
+  }
+
+  return { traj_in, traj_rot, cross_t, cross_pt_in, cross_pt_rot, max_r, min_r };
+}
+
+// ── Helpers ──
+function drawGrid(ctx) {
+  ctx.strokeStyle = 'rgba(28,35,51,0.9)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= W; x += SCALE) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for (let y = 0; y <= H; y += SCALE) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(CX,0); ctx.lineTo(CX,H); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,CY); ctx.lineTo(W,CY); ctx.stroke();
+}
+
+function drawCircles(ctx, wallColor) {
+  const [ox, oy] = cm2px(0, 0);
+
+  // Outer wall
+  ctx.beginPath(); ctx.arc(ox, oy, R_OUT*SCALE, 0, Math.PI*2);
+  ctx.strokeStyle = wallColor; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.beginPath(); ctx.arc(ox, oy, R_OUT*SCALE, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(88,166,255,0.03)'; ctx.fill();
+
+  // Gray reference circle (R=3, hand height)
+  ctx.setLineDash([5, 4]);
+  ctx.beginPath(); ctx.arc(ox, oy, R_REF*SCALE, 0, Math.PI*2);
+  ctx.strokeStyle = '#666'; ctx.lineWidth = 1.8; ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Center dot
+  ctx.beginPath(); ctx.arc(ox, oy, 3, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fill();
+}
+
+function drawScaleBar(ctx) {
+  const sx = 14, sy = H - 18;
+  ctx.strokeStyle = '#30363d'; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(sx, sy); ctx.lineTo(sx+SCALE, sy);
+  ctx.moveTo(sx, sy-3); ctx.lineTo(sx, sy+3);
+  ctx.moveTo(sx+SCALE, sy-3); ctx.lineTo(sx+SCALE, sy+3);
+  ctx.stroke();
+  ctx.fillStyle = '#484f58';
+  ctx.font = '9px Space Mono, monospace';
+  ctx.fillText('1 cm', sx + SCALE/2 - 12, sy - 5);
+}
+
+function lbl(ctx, text, x, y, color) {
+  ctx.fillStyle = color || '#6e7681';
+  ctx.font = '10px Space Mono, monospace';
+  ctx.fillText(text, x, y);
+}
+
+// ── Main draw ──
+function draw() {
+  const vr   = parseFloat(document.getElementById('vr').value);
+  const vt_e = parseFloat(document.getElementById('vt').value);
+  const tmax = parseFloat(document.getElementById('tmax').value);
+
+  document.getElementById('vr_lbl').textContent   = vr.toFixed(3);
+  document.getElementById('vt_lbl').textContent   = vt_e.toFixed(3);
+  document.getElementById('tmax_lbl').textContent = tmax.toFixed(0);
+
+  const { traj_in, traj_rot, cross_t, cross_pt_in, cross_pt_rot, max_r, min_r }
+        = simulate(vr, vt_e, tmax);
+
+  const DOT = 0.5; // dot interval in seconds
+
+  // ─────────────────────────────────
+  //  LEFT: INERTIAL FRAME
+  // ─────────────────────────────────
+  const ci = CV.in.ctx;
+  ci.clearRect(0, 0, W, H);
+  drawGrid(ci);
+  drawCircles(ci, '#3d7bc8');
+
+  // Person dots
+  traj_in.forEach(pt => {
+    if (pt.t > 0.01 && Math.abs(pt.t % DOT) < 0.021) {
+      const [px, py] = cm2px(pt.ppx, pt.ppy);
+      ci.globalAlpha = 0.2 + 0.6 * (pt.t / tmax);
+      ci.beginPath(); ci.arc(px, py, 2.5, 0, Math.PI*2);
+      ci.fillStyle = '#e3b341'; ci.fill();
+    }
+  });
+  ci.globalAlpha = 1;
+
+  // Ball dots
+  traj_in.forEach(pt => {
+    if (Math.abs(pt.t % DOT) < 0.021) {
+      const [px, py] = cm2px(pt.bx, pt.by);
+      ci.globalAlpha = 0.25 + 0.75 * (pt.t / tmax);
+      ci.beginPath(); ci.arc(px, py, 2.5, 0, Math.PI*2);
+      ci.fillStyle = '#3fb950'; ci.fill();
+    }
+  });
+  ci.globalAlpha = 1;
+
+  // Person at t=0
+  const [p0x, p0y] = cm2px(0, -R_OUT);
+  ci.beginPath(); ci.arc(p0x, p0y, 7, 0, Math.PI*2);
+  ci.fillStyle = '#e3b341'; ci.fill();
+  ci.strokeStyle = '#fff'; ci.lineWidth = 1.2; ci.stroke();
+  lbl(ci, '인간 t=0', p0x+9, p0y+4, '#e3b341');
+
+  // Ball launch dot — on gray circle
+  const [bl0x, bl0y] = cm2px(0, -R_REF);
+  ci.beginPath(); ci.arc(bl0x, bl0y, 5, 0, Math.PI*2);
+  ci.fillStyle = '#3fb950'; ci.fill();
+  ci.strokeStyle = '#fff'; ci.lineWidth = 1; ci.stroke();
+  lbl(ci, '발사 (손=회색원)', bl0x+7, bl0y-4, '#3fb950');
+
+  // Crossing marker
+  if (cross_pt_in) {
+    const [cx2, cy2] = cm2px(cross_pt_in.x, cross_pt_in.y);
+    ci.beginPath(); ci.arc(cx2, cy2, 10, 0, Math.PI*2);
+    ci.strokeStyle = '#ff7b72'; ci.lineWidth = 2; ci.stroke();
+    ci.beginPath(); ci.arc(cx2, cy2, 3, 0, Math.PI*2);
+    ci.fillStyle = '#ff7b72'; ci.fill();
+    lbl(ci, '교차 '+cross_t.toFixed(2)+'s', cx2+12, cy2, '#ff7b72');
+
+    // Person at crossing
+    const pt = traj_in.find(p => Math.abs(p.t - cross_t) < 0.025);
+    if (pt) {
+      const [pcx, pcy] = cm2px(pt.ppx, pt.ppy);
+      ci.beginPath(); ci.arc(pcx, pcy, 7, 0, Math.PI*2);
+      ci.fillStyle = '#e3b341'; ci.strokeStyle = '#ff7b72'; ci.lineWidth = 2;
+      ci.fill(); ci.stroke();
+      lbl(ci, '인간 t=교차', pcx+9, pcy+4, '#e3b341');
+    }
+  }
+
+  drawScaleBar(ci);
+
+  // ─────────────────────────────────
+  //  RIGHT: ROTATING FRAME
+  // ─────────────────────────────────
+  const cr = CV.rot.ctx;
+  cr.clearRect(0, 0, W, H);
+  drawGrid(cr);
+  drawCircles(cr, '#8b5cf6');
+
+  // Person fixed at bottom
+  const [rp0x, rp0y] = cm2px(0, -R_OUT);
+  cr.beginPath(); cr.arc(rp0x, rp0y, 7, 0, Math.PI*2);
+  cr.fillStyle = '#e3b341'; cr.fill();
+  cr.strokeStyle = '#fff'; cr.lineWidth = 1.2; cr.stroke();
+  lbl(cr, '인간(고정)', rp0x+9, rp0y+4, '#e3b341');
+
+  // Ball launch on gray circle
+  const [rbl0x, rbl0y] = cm2px(0, -R_REF);
+  cr.beginPath(); cr.arc(rbl0x, rbl0y, 5, 0, Math.PI*2);
+  cr.fillStyle = '#3fb950'; cr.fill();
+  cr.strokeStyle = '#fff'; cr.lineWidth = 1; cr.stroke();
+  lbl(cr, '발사', rbl0x+7, rbl0y-4, '#3fb950');
+
+  // Ball trajectory dots (rotating frame)
+  traj_rot.forEach(pt => {
+    if (Math.abs(pt.t % DOT) < 0.021) {
+      const [px, py] = cm2px(pt.bx, pt.by);
+      cr.globalAlpha = 0.25 + 0.75 * (pt.t / tmax);
+      cr.beginPath(); cr.arc(px, py, 2.5, 0, Math.PI*2);
+      cr.fillStyle = '#3fb950'; cr.fill();
+    }
+  });
+  cr.globalAlpha = 1;
+
+  // Crossing in rotating frame
+  if (cross_pt_rot) {
+    const [cx2, cy2] = cm2px(cross_pt_rot.x, cross_pt_rot.y);
+    cr.beginPath(); cr.arc(cx2, cy2, 10, 0, Math.PI*2);
+    cr.strokeStyle = '#ff7b72'; cr.lineWidth = 2; cr.stroke();
+    cr.beginPath(); cr.arc(cx2, cy2, 3, 0, Math.PI*2);
+    cr.fillStyle = '#ff7b72'; cr.fill();
+    lbl(cr, '교차 '+cross_t.toFixed(2)+'s', cx2+12, cy2, '#ff7b72');
+  }
+
+  // Center dot
+  cr.beginPath(); cr.arc(CX, CY, 3, 0, Math.PI*2);
+  cr.fillStyle = 'rgba(255,255,255,0.15)'; cr.fill();
+
+  drawScaleBar(cr);
+
+  // ── Info bar ──
+  const ctEl   = document.getElementById('i_ct');
+  const angEl  = document.getElementById('i_ang');
+  const maxrEl = document.getElementById('i_maxr');
+  const minrEl = document.getElementById('i_minr');
+
+  if (cross_t !== null) {
+    ctEl.textContent  = cross_t.toFixed(2) + ' s';
+    angEl.textContent = (OMEGA * cross_t * 180/Math.PI).toFixed(1) + '°';
+    ctEl.className    = 'val ok';
+  } else {
+    ctEl.textContent  = '교차 없음';
+    ctEl.className    = 'val warn';
+    angEl.textContent = '—';
+  }
+  maxrEl.textContent = max_r.toFixed(3) + ' cm';
+  minrEl.textContent = min_r.toFixed(3) + ' cm';
+}
+
+// ── Auto-find: maximise crossing time ──
+function autoFind() {
+  const vt_e = parseFloat(document.getElementById('vt').value);
+  const tmax = parseFloat(document.getElementById('tmax').value);
+
+  let best_vr = 0.48, best_ct = 0;
+  for (let vr = 0.01; vr <= 1.0; vr += 0.005) {
+    const { cross_t } = simulate(vr, vt_e, tmax);
+    if (cross_t && cross_t > best_ct) {
+      best_ct = cross_t;
+      best_vr = vr;
+    }
+  }
+  document.getElementById('vr').value = best_vr.toFixed(3);
+  draw();
+}
+
+function presetOptimal() {
+  document.getElementById('vr').value   = '0.480';
+  document.getElementById('vt').value   = '0.000';
+  document.getElementById('tmax').value = '14';
+  draw();
+}
+
+['vr', 'vt', 'tmax'].forEach(id =>
+  document.getElementById(id).addEventListener('input', draw)
+);
+
+draw();
+</script>
+</body>
+</html>
+
+
